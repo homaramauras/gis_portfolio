@@ -13,9 +13,7 @@ library(tidyverse)
 library(dplyr)
 library(sf)
 library(leaflet)
-library(rnaturalearth)
 library(mapview)
-library(rnaturalearthhires)
 ```
 
 # INTRODUCTION
@@ -39,8 +37,6 @@ Include war declaration timeline
 3. Attack Sub-type
 4. Time
 
-
-
 ## SIGNIFICANCE
 Explain why understanding the spatial distribution of attacks across identity groups is important for humanitarian, political, and academic purposes.
 
@@ -60,6 +56,7 @@ Administrative Lebanese Data:
 Confessional Distribution Data:
 2006 Lebanese War Reports:
 
+
 ```{r datasets}
 #| error: false
 acled_df <- read.csv("/Users/homi/Data Science/datasets/acled_aggregated_20048.csv")
@@ -75,13 +72,11 @@ This is a map of Lebanon using mapview.
 ```{r lebanon_mapview}
 lebanon_map <- st_read("/Users/homi/Data Science/datasets/geoBoundaries-LBN-ADM1-all/geoBoundaries-LBN-ADM1.shp")
 
+lebanon_map <- lebanon_map %>%
+  select(shapeName, geometry) #cleaning lebanon_map
+
 # Combine Mount Lebanon and Jbiel
 
+
 mapview(lebanon_map)
-```
-
-This is a map of Lebanon using leaflet \*prefered option
-
-```{r leaflet}
-
 ```
