@@ -16,46 +16,6 @@ library(leaflet)
 library(mapview)
 ```
 
-# INTRODUCTION
-
-## 2006 WAR ON LEBANON
-
-## ESCALATIONS FOLLOWING OCTOBER 7TH
-Include war declaration timeline
-
-## OBJECTIVES
-
-### RESEARCH QUESTIONS
-1. What is P(attack | identity)P(attack | identity)?
-2. Casualties per identity group.
-3. Are types of attacks the same across identity groups?
-4. Are Israeli attack rates across identity groups in Lebanon consistent between the 2006 Lebanon War and recent events?
-
-### VARIABLES OF INTEREST
-1. Identity
-2. Location
-3. Attack Sub-type
-4. Time
-
-## SIGNIFICANCE
-Explain why understanding the spatial distribution of attacks across identity groups is important for humanitarian, political, and academic purposes.
-
-## SCOPE
-Define the geographic and demographic parameters (e.g., Lebanon’s 8 Governorates and key identity groups).
-
-
-**METHOD OF ANALYSIS**
-1. Time series analysis of 
-
-
-**DATA DESCRIPTION**
-This report pulls data from multiple sources to answer the proposed research questions:
-1. Population estimates: U.S. State Department and WHO 
-2. Israeli attacks on Lebanon: Using ACLED Data and filtering for IDF attacks
-Administrative Lebanese Data:
-Confessional Distribution Data:
-2006 Lebanese War Reports:
-
 
 ```{r datasets}
 #| error: false
