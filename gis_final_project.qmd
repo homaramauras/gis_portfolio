@@ -14,8 +14,8 @@ library(dplyr)
 library(sf)
 library(leaflet)
 library(mapview)
+library(lubridate)
 ```
-
 
 ```{r datasets}
 acled <- read.csv('/Users/homi/Data Science/datasets/acled_aggregated_20060.csv')
@@ -23,11 +23,7 @@ confessional <- read_csv('/Users/homi/Data Science/datasets/adm1_confessional.cs
 lebanon_adm1 <- st_read("/Users/homi/Data Science/datasets/geoBoundaries-LBN-ADM1-all/geoBoundaries-LBN-ADM1.shp")
 ```
 
-```{r exploratory}
-str(acled) 
-str(confessional)
-str(lebanon_adm1)
-
+```{r cleaning}
 #lowercase
 names(acled) <- tolower(names(acled))
 names(confessional) <- tolower(names(confessional))
@@ -42,10 +38,19 @@ acled <- acled %>% rename(adm1 = admin1, event_month = event.month, event_type =
 confessional <- confessional %>% rename(iso = iso_3166_2, sect = reported_sect, adm1_sect = adm1_total)
 lebanon_adm1 <- lebanon_adm1 %>% rename(adm1 = shapename, iso = shapeiso)
 
-#recoding
-## replace event_month dates with corresponding month name
-## replace sect to Maronite, Shia, Sunni, Druze, and Other
+#replace event_month dates with corresponding month name (using lubridate)
+acled$event_month <- ymd(acled$event_month) #converting event_month into date format
+acled$prior_month <- floor_date(acled$event_month - days(1), "month") #adjust to the prior month by subtracting one day, then getting the first day of that month
+acled$prior_month <- format(acled$prior_month, "%B, %Y") #format the 'prior_month' column as "Month, Year"
+acled <- acled %>% relocate(prior_month, .before = event_month) #changing column order
 
-#join
-
+# replace sect to Maronite, Shia, Sunni, Druze, and Other
+confessional <- confessional %>%
+  mutate(sect = if_else(sect %in% c("Armenian Catholic", "Armenian Orthodox", 
+                                    "Christian Minorities", "Greek Catholic", 
+                                    "Greek Orthodox", "Maronite", "Protestant"), 
+                        "Christian", sect)) #replacing christian groups into broader christian category
+confessional <- confessional %>%
+  mutate(sect = if_else(sect %in% "Alawite", 
+                        "Shia", sect)) #including Alawite in Shia faith
 ```
