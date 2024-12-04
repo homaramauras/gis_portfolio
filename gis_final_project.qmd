@@ -18,25 +18,34 @@ library(mapview)
 
 
 ```{r datasets}
-#| error: false
-acled_df <- read.csv("/Users/homi/Data Science/datasets/acled_aggregated_20048.csv")
-
-unique(acled_df$Sub.Event.Type) #maybe we can organize it in a tibble to make it more presentable
-
-#insert code for table
-
+acled <- read.csv('/Users/homi/Data Science/datasets/acled_aggregated_20060.csv')
+confessional <- read_csv('/Users/homi/Data Science/datasets/adm1_confessional.csv')
+lebanon_adm1 <- st_read("/Users/homi/Data Science/datasets/geoBoundaries-LBN-ADM1-all/geoBoundaries-LBN-ADM1.shp")
 ```
 
-This is a map of Lebanon using mapview.
+```{r exploratory}
+str(acled) 
+str(confessional)
+str(lebanon_adm1)
 
-```{r lebanon_mapview}
-lebanon_map <- st_read("/Users/homi/Data Science/datasets/geoBoundaries-LBN-ADM1-all/geoBoundaries-LBN-ADM1.shp")
+#lowercase
+names(acled) <- tolower(names(acled))
+names(confessional) <- tolower(names(confessional))
+names(lebanon_adm1) <- tolower(names(lebanon_adm1))
 
-lebanon_map <- lebanon_map %>%
-  select(shapeName, geometry) #cleaning lebanon_map
+#selecting relevant variables
+acled <- acled %>% select(admin1, event.month, sub.event.type, events)
+lebanon_adm1 <- lebanon_adm1 %>% select(shapename, shapeiso, geometry)
 
-# Combine Mount Lebanon and Jbiel
+#renaming variables
+acled <- acled %>% rename(adm1 = admin1, event_month = event.month, event_type = sub.event.type)
+confessional <- confessional %>% rename(iso = iso_3166_2, sect = reported_sect, adm1_sect = adm1_total)
+lebanon_adm1 <- lebanon_adm1 %>% rename(adm1 = shapename, iso = shapeiso)
 
+#recoding
+## replace event_month dates with corresponding month name
+## replace sect to Maronite, Shia, Sunni, Druze, and Other
 
-mapview(lebanon_map)
+#join
+
 ```
