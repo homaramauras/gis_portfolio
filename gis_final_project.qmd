@@ -54,3 +54,19 @@ confessional <- confessional %>%
   mutate(sect = if_else(sect %in% "Alawite", 
                         "Shia", sect)) #including Alawite in Shia faith
 ```
+
+
+```{r union}
+#combining Jbeil with Mount Lebanon using st_union
+lebanon_union <- lebanon_adm1 %>%
+  st_union(c("Mont-Liban", "Jeserwan-Jbeil"), by_feature = geometry) #REVISE REVISE
+```
+
+
+```{r descriptive_religion}
+sect_summary <- confessional %>%
+  group_by(sect) %>%
+  summarise(sum = sum(adm1_sect)) %>%
+  arrange(desc(sum))
+sect_summary 
+```
