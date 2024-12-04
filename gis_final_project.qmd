@@ -100,7 +100,7 @@ lebanon_union <- lebanon_adm1 %>%
 unique(lebanon_union$adm1)
 union_map <- lebanon_union %>%
   select(adm1, geometry) %>%
-  mapview()
+  mapview(layer.name = "Governorate")
 union_map 
 
 #THE SOUTHERN BORDER OF JBEIL DID NOT DISAPPEAR
@@ -116,5 +116,6 @@ sect_summary
 ```
 
 ```{r join}
+#joining acled + confessional by iso
 
 ```
