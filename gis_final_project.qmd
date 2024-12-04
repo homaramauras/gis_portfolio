@@ -44,7 +44,7 @@ acled$prior_month <- floor_date(acled$event_month - days(1), "month") #adjust to
 acled$prior_month <- format(acled$prior_month, "%B, %Y") #format the 'prior_month' column as "Month, Year"
 acled <- acled %>% relocate(prior_month, .before = event_month) #changing column order
 
-# replace sect to Maronite, Shia, Sunni, Druze, and Other
+# replace sect to Christian, Shia, Sunni, Druze, and Other
 confessional <- confessional %>%
   mutate(sect = if_else(sect %in% c("Armenian Catholic", "Armenian Orthodox", 
                                     "Christian Minorities", "Greek Catholic", 
