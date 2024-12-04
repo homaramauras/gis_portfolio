@@ -23,7 +23,7 @@ confessional <- read_csv('/Users/homi/Data Science/datasets/adm1_confessional.cs
 lebanon_adm1 <- st_read("/Users/homi/Data Science/datasets/geoBoundaries-LBN-ADM1-all/geoBoundaries-LBN-ADM1.shp")
 ```
 
-```{r cleaning}
+```{r formatting}
 #lowercase
 names(acled) <- tolower(names(acled))
 names(confessional) <- tolower(names(confessional))
@@ -43,7 +43,10 @@ acled$event_month <- ymd(acled$event_month) #converting event_month into date fo
 acled$prior_month <- floor_date(acled$event_month - days(1), "month") #adjust to the prior month by subtracting one day, then getting the first day of that month
 acled$prior_month <- format(acled$prior_month, "%B, %Y") #format the 'prior_month' column as "Month, Year"
 acled <- acled %>% relocate(prior_month, .before = event_month) #changing column order
+head(acled$prior_month)
+```
 
+```{r names}
 # replace sect to Christian, Shia, Sunni, Druze, and Other
 confessional <- confessional %>%
   mutate(sect = if_else(sect %in% c("Armenian Catholic", "Armenian Orthodox", 
@@ -53,13 +56,54 @@ confessional <- confessional %>%
 confessional <- confessional %>%
   mutate(sect = if_else(sect %in% "Alawite", 
                         "Shia", sect)) #including Alawite in Shia faith
+head(confessional$sect)
+
+#replacing adm1 names to english
+confessional <- confessional %>% #changing confessional
+  mutate(adm1 = if_else(adm1 %in% "Bayrut", "Beirut", adm1),
+         adm1 = if_else(adm1 %in% "Beqaa", "Bekaa", adm1),
+         adm1 = if_else(adm1 %in% "Liban-Nord", "North", adm1),
+         adm1 = if_else(adm1 %in% "Liban-Sud", "South", adm1),
+         adm1 = if_else(adm1 %in% "Mont-Liban", "Mount Lebanon", adm1),
+         adm1 = if_else(adm1 %in% "Nabatiye", "Al Nabatieh", adm1)) 
+unique(confessional$adm1)
+
+lebanon_adm1 <- lebanon_adm1 %>%
+  mutate(adm1 = if_else(adm1 %in% "Aakkâr", "Akkar", adm1),
+         adm1 = if_else(adm1 %in% "Nabatîyé", "Al Nabatieh", adm1),
+         adm1 = if_else(adm1 %in% "Beyrouth", "Beirut", adm1),
+         adm1 = if_else(adm1 %in% "Béqaa", "Bekaa", adm1),
+         adm1 = if_else(adm1 %in% "Liban-Nord", "North", adm1),
+         adm1 = if_else(adm1 %in% "Mont-Liban", "Mount Lebanon", adm1),
+         adm1 = if_else(adm1 %in% "Liban-Sud", "South", adm1),
+         adm1 = if_else(adm1 %in% "Nabatîyé", "Al Nabatieh", adm1),
+         )
+unique(lebanon_adm1$adm1)
+unique(acled$adm1)
 ```
 
 
 ```{r union}
 #combining Jbeil with Mount Lebanon using st_union
+###view the original map
+adm1_map <- lebanon_adm1 %>%
+  select(adm1, geometry) %>%
+  mapview()
+adm1_map
+
 lebanon_union <- lebanon_adm1 %>%
-  st_union(c("Mont-Liban", "Jeserwan-Jbeil"), by_feature = geometry) #REVISE REVISE
+  mutate(adm1 = ifelse(adm1 == "Keserwan-Jbeil", "Mount Lebanon", adm1)) %>%
+  group_by(adm1, iso) %>%
+  summarize(geometry = st_union(geometry), .groups = "drop")
+
+#checking the updated geometries
+unique(lebanon_union$adm1)
+union_map <- lebanon_union %>%
+  select(adm1, geometry) %>%
+  mapview()
+union_map 
+
+#THE SOUTHERN BORDER OF JBEIL DID NOT DISAPPEAR
 ```
 
 
@@ -69,4 +113,8 @@ sect_summary <- confessional %>%
   summarise(sum = sum(adm1_sect)) %>%
   arrange(desc(sum))
 sect_summary 
+```
+
+```{r join}
+
 ```
