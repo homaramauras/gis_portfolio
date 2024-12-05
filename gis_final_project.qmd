@@ -45,45 +45,92 @@ acled$prior_month <- format(acled$prior_month, "%B, %Y") #format the 'prior_mont
 acled <- acled %>% relocate(prior_month, .before = event_month) #changing column order
 ```
 
+
+```{r names}
+# replace sect to Christian, Shia, Sunni, Druze, and Other
+confessional <- confessional %>%
+  mutate(sect = if_else(sect %in% c("Armenian Catholic", "Armenian Orthodox", 
+                                    "Christian Minorities", "Greek Catholic", 
+                                    "Greek Orthodox", "Maronite", "Protestant"), 
+                        "Christian", sect)) #replacing christian groups into broader christian category
+confessional <- confessional %>%
+  mutate(sect = if_else(sect %in% "Alawite", 
+                        "Shia", sect)) #including Alawite in Shia faith
+
+#replacing adm1 names to english
+confessional <- confessional %>% #changing confessional
+  mutate(adm1 = if_else(adm1 %in% "Bayrut", "Beirut", adm1),
+         adm1 = if_else(adm1 %in% "Beqaa", "Bekaa", adm1),
+         adm1 = if_else(adm1 %in% "Liban-Nord", "North", adm1),
+         adm1 = if_else(adm1 %in% "Liban-Sud", "South", adm1),
+         adm1 = if_else(adm1 %in% "Mont-Liban", "Mount Lebanon", adm1),
+         adm1 = if_else(adm1 %in% "Nabatiye", "Al Nabatieh", adm1)) 
+
+lebanon_adm1 <- lebanon_adm1 %>%
+  mutate(adm1 = if_else(adm1 %in% "Aakkâr", "Akkar", adm1),
+         adm1 = if_else(adm1 %in% "Nabatîyé", "Al Nabatieh", adm1),
+         adm1 = if_else(adm1 %in% "Beyrouth", "Beirut", adm1),
+         adm1 = if_else(adm1 %in% "Béqaa", "Bekaa", adm1),
+         adm1 = if_else(adm1 %in% "Liban-Nord", "North", adm1),
+         adm1 = if_else(adm1 %in% "Mont-Liban", "Mount Lebanon", adm1),
+         adm1 = if_else(adm1 %in% "Liban-Sud", "South", adm1),
+         adm1 = if_else(adm1 %in% "Nabatîyé", "Al Nabatieh", adm1))
+```
+
+
 # Understanding Israeli attack patterns across ethno-religious groups in Lebanon
 
-## Introduction
+## I. Introduction
 
 The history of conflict between Israel and Lebanon, particularly involving Hezbollah, is marked by recurring hostilities and complex ethno-religious dynamics. The most recent escalation began on October 7, 2023 which led to a 14-month conflict between Israel and Hezbollah. The recent escalation between Israel and Hezbollah has had profound implications for Lebanon’s ethno-religious groups. Shiite communities have borne the brunt of the conflict due to their association with Hezbollah, while some Christian areas have remained relatively unscathed. Understanding these patterns is crucial for analyzing the broader socio-political impact of the conflict on Lebanon's diverse society.
 
-## Objective
+### 1.1 Objective
 
-### Research Question:
+This study aims to explore the the impact of conflict dynamics on ethno-religious identities in Lebanon, focusing on how Israeli attack patterns disproportionately impact different groups and regions. By examining spatial and identity-based disparities in attack frequency, types, and casualties, the research seeks to uncover trends that can inform humanitarian aid, guide policy interventions, and the visibilization of those who bare the cost of war.
 
-1.  What is P(attack \| identity)?
-2.  Are casualties constant across identity groups?
-3.  Are types of attacks the same across identity groups?
+#### 1.1.1 Research Question
 
-### Variables of Interest
+1.  What is the likelihood of an attack occurring in a region based on the predominant ethno-religious identity?
+2.  Do casualty rates vary across ethno-religious groups?
+3.  Are specific types of attacks more prevalent in areas dominated by particular identity groups?
 
--   Identity
--   Governorates (admin level 1)
--   Attack type
--   Casualties
+#### 1.1.2 Variables of Interest
 
-### Religions in Lebanon
+-   Identity: Captures the impact of attacks on various ethno-religious groups, highlighting potential disparities in targeting or vulnerability.
+-   Governorates: Analyzes spatial trends in attacks by administrative regions, providing a geographic perspective on conflict dynamics.
+-   Attack type: Identifies the nature of the attacks to assess whether certain tactics are disproportionately used against specific groups or areas.
+-   Casualties: Examines the human cost of conflict, measuring variations in the number of casualties across regions and identity groups.
 
-### Significance
+#### 1.1.3 Significance
 
-Understanding the spatial distribution of attacks across identity groups in Lebanon is critical to shape effective aid interventions.
+Understanding the spatial distribution of attacks across identity groups is critical for shaping effective humanitarian aid interventions and informing conflict mitigation strategies. By identifying patterns, this research can support targeted resource allocation and long-term reconciliation efforts.
 
-## Data and Methodology
+## II. Data and Methodology
 
-### Data Sources
-* Population statistics: World Health Organization (WHO) Data & CIA World Handbook
-* Confessional distribution: United Nations Office for the Coordination of Humanitarian Affairs (UN OCHA)
-* Administrative data: Human Data Exchange
-* Attack reports: Armed Conflict Location & Event Data (ACLED)
+### 2.1 Data Sources
 
+-   Population statistics: World Health Organization (WHO) Data & CIA World Handbook
+-   Confessional distribution: United Nations Office for the Coordination of Humanitarian Affairs (UN OCHA)
+-   Administrative data: Human Data Exchange
+-   Attack reports: Armed Conflict Location & Event Data (ACLED)
 
-### Scope
+### 2.2 Limitations and Assumptions
 
-#### Level of Analysis
+#### 2.2.1 Limitations
+
+-   Despite the sizeable refugee population in Lebanon, due to time constraints and lack of readily available data on the said groups, they will not be included in the analysis.
+-   The absence of point data for attack types limits analysis to aggregating at the administrative 1 level.
+-   Absence of publicly accessible and recurring census data limits the depth of the analysis.
+
+#### 2.2.2 Assumptions
+
+-   Rates of confessional distribution are constant.
+-   Attack patterns affect identity groups at the same rate within a same Governorate
+
+### 2.3 Scope
+
+#### 2.3.1 Level of Analysis
+
 The variables of interest are measured at the Governorate (administrative 1) level. Lebanon is divided into 9 Governorates:
 
 1.  Akkar
@@ -96,62 +143,141 @@ The variables of interest are measured at the Governorate (administrative 1) lev
 8.  South Lebanon
 9.  Keserwan-Jbeil
 
+```{r og_map}
+adm1_map <- lebanon_adm1 %>%
+  select(adm1, geometry) %>%
+  mapview(layer.name = "Governorate")
+adm1_map
+```
+
+
+
 However, given that Keserwan-Jbeil was only formally established in 2017, splitting off from Mount Lebanon, the available data only reflects estimates for eight out of the nine Governorates.
 
 
-### Demographics
-As of 2023, the World Health Organization (WHO) estimates Lebanon's population at approximately 5.77 million. Recent U.S. State Department reports indicate that Syrian refugees account for around 1.5 million of this population, while Palestinian refugees are estimated at 250,000. Other refugee groups collectively number approximately 11,645. Furthermore, Lebanon's population is comprised of a plethora of ethno-religious groups across the country. Much can be learned from 
 
+```{r union}
+#combining Jbiel and Mount Lebanon
+lebanon_union <- lebanon_adm1 %>%
+  slice(c(4,9)) %>% 
+  mutate(geometry = st_make_valid(geometry)) %>%
+  summarize(geometry = st_union(geometry)) %>%
+  mutate(adm1 = "Mount Lebanon") %>%
+  mutate(iso = "LB-JL")
+  
+lebanon_adm1 <- lebanon_adm1 %>%
+  slice(-c(4,9)) %>% 
+  bind_rows(lebanon_union)
 
-#### Confessional Distribution in Lebanon
+union_map <- lebanon_adm1 %>%
+  select(adm1, geometry) %>%
+  mapview(layer.name = "Governorate")
+union_map 
+```
+
+### 2.4 Demographics
+
+As of 2023, the World Health Organization (WHO) estimates Lebanon's population at approximately 5.77 million. Recent U.S. State Department reports indicate that Syrian refugees account for around 1.5 million of this population, while Palestinian refugees are estimated at 250,000. Other refugee groups collectively number approximately 11,645. Lebanon's population is also characterized by its diverse ethno-religious composition, with residents typically divided into the following groups:
+
+1.  Christians
+2.  Sunni Muslims
+3.  Shia Muslims
+4.  Druze
+
+#### 2.4.1 Confessional Distribution in Lebanon
+
 Lebanon’s political system is based on a confessional model, where power is divided among these groups. This arrangement has fostered cooperation but also entrenched sectarian divisions, influencing everything from governance to social interactions.
 
-*Christians*
-Lebanon’s Christians are a diverse group, including Maronite Catholics, Greek Orthodox, Greek Catholics (Melkites), Armenian Orthodox, Armenian Catholics, Protestants, and other smaller denominations. Maronites, the largest Christian sect, are in communion with the Roman Catholic Church but retain unique liturgical practices. Historically, Christians held significant political influence, with the presidency reserved for a Maronite under the National Pact of 1943. Their communities are spread across the country, particularly in Mount Lebanon and parts of Beirut, where they play a central role in the cultural and political fabric of the nation.
+*Christians* Lebanon’s Christians are a diverse group, including Maronite Catholics, Greek Orthodox, Greek Catholics (Melkites), Armenian Orthodox, Armenian Catholics, Protestants, and other smaller denominations. Maronites, the largest Christian sect, are in communion with the Roman Catholic Church but retain unique liturgical practices. Historically, Christians held significant political influence, with the presidency reserved for a Maronite under the National Pact of 1943. Their communities are spread across the country, particularly in Mount Lebanon and parts of Beirut, where they play a central role in the cultural and political fabric of the nation.
 
-*Sunni Muslim*
-Sunni Muslims in Lebanon follow the Sunni branch of Islam, emphasizing the traditions of the Prophet Muhammad as interpreted by scholarly consensus. Sunni Muslims were allocated the position of Prime Minister in Lebanon's power-sharing arrangement, reflecting their political prominence. Sunni communities are primarily located in urban centers such as Beirut, Tripoli, and Sidon, as well as in parts of the Bekaa Valley and the south. They have historically been influential in Lebanon’s economic and political spheres, serving as a counterbalance to other religious groups in the country.
+*Sunni Muslim* Sunni Muslims in Lebanon follow the Sunni branch of Islam, emphasizing the traditions of the Prophet Muhammad as interpreted by scholarly consensus. Sunni Muslims were allocated the position of Prime Minister in Lebanon's power-sharing arrangement, reflecting their political prominence. Sunni communities are primarily located in urban centers such as Beirut, Tripoli, and Sidon, as well as in parts of the Bekaa Valley and the south. They have historically been influential in Lebanon’s economic and political spheres, serving as a counterbalance to other religious groups in the country.
 
-*Shi’i Muslims*
-Shi’i Muslims form Lebanon's largest Muslim sect and are followers of the Shia branch of Islam, which emphasizes the leadership of the Prophet Muhammad's descendants, particularly Ali and his lineage. Traditionally marginalized in Lebanon's political system, Shi’i Muslims gained prominence through the emergence of Hezbollah in the 1980s, which serves as both a political party and a militant force. The Shi’i population is concentrated in southern Lebanon, the Bekaa Valley, and the southern suburbs of Beirut (known as Dahiyeh), areas that have been central to Lebanon’s recent political and military conflicts.
+*Shia Muslims* Shia Muslims form Lebanon's largest Muslim sect and are followers of the Shia branch of Islam, which emphasizes the leadership of the Prophet Muhammad's descendants, particularly Ali and his lineage. Traditionally marginalized in Lebanon's political system, Shia Muslims gained prominence through the emergence of Hezbollah in the 1980s, which serves as both a political party and a militant force. The Shi’i population is concentrated in southern Lebanon, the Bekaa Valley, and the southern suburbs of Beirut (known as Dahiyeh), areas that have been central to Lebanon’s recent political and military conflicts.
 
-*Druze*
-The Druze, a distinct religious group with roots in Islam, practice an esoteric faith that incorporates elements of Neoplatonism, Gnosticism, and other philosophical traditions. Known for their secrecy, the Druze do not proselytize, and their religious texts are accessible only to an elite group of initiates. Politically, the Druze have maintained a significant role despite being a numerical minority, often serving as power brokers in Lebanon’s sectarian political system. Their communities are concentrated in the Chouf Mountains, Mount Lebanon, and parts of the Bekaa Valley, where they have historically formed close-knit and influential enclaves.
+*Druze* The Druze, a distinct religious group with roots in Islam, practice an esoteric faith that incorporates elements of Neoplatonism, Gnosticism, and other philosophical traditions. Known for their secrecy, the Druze do not proselytize, and their religious texts are accessible only to an elite group of initiates. Politically, the Druze have maintained a significant role despite being a numerical minority, often serving as power brokers in Lebanon’s sectarian political system. Their communities are concentrated in the Chouf Mountains, Mount Lebanon, and parts of the Bekaa Valley, where they have historically formed close-knit and influential enclaves.
+
+## III. Analysis
+
+### 3.1 Spatial Analysis of Attacks
+
+-   Present maps and tables showing:
+    -   Attack frequencies by governorate.
+    -   Refugee distributions relative to attack locations.
+    -   Identity group distribution by governorate.
+
+### 3.2 Likelihood of Attacks for given Identity
+
+-   Calculate and present probabilities for each identity group using:
+    -   P(attack \| identity) = n of attacks on groupTotal attacks in Lebanon
+    -   P(attack \| identity)= Total attacks in LebanonNumber of attacks on group​
+-   Discuss patterns or disparities.
+
+### 3.3 Casualties Per Identity Group
+
+-   Show casualty distribution and normalize values by population size within each identity group for comparison.
+-   Include visualizations such as bar charts or proportional symbol maps.
+
+### 3.4 Attack Types and Variations
+
+-   Compare the types of attacks (e.g., airstrikes, ground operations) across identity groups. Use tables or clustered bar charts.
+-   Highlight patterns or notable differences.
+
+#### 3.5 Comparison of Attack Paterns Prior and Post October 7th (OPTIONAL)
+
+-   Map and analyze attack frequencies and distributions of 1 year prior October 7th and post October 7th.
+-   Perform statistical tests if applicable to assess whether attack rates differ significantly between time periods.
 
 
-
-```{r names}
-# replace sect to Christian, Shia, Sunni, Druze, and Other
-confessional <- confessional %>%
-  mutate(sect = if_else(sect %in% c("Armenian Catholic", "Armenian Orthodox", 
-                                    "Christian Minorities", "Greek Catholic", 
-                                    "Greek Orthodox", "Maronite", "Protestant"), 
-                        "Christian", sect)) #replacing christian groups into broader christian category
-confessional <- confessional %>%
-  mutate(sect = if_else(sect %in% "Alawite", 
-                        "Shia", sect)) #including Alawite in Shia faith
-head(confessional$sect)
-
-#replacing adm1 names to english
-confessional <- confessional %>% #changing confessional
-  mutate(adm1 = if_else(adm1 %in% "Bayrut", "Beirut", adm1),
-         adm1 = if_else(adm1 %in% "Beqaa", "Bekaa", adm1),
-         adm1 = if_else(adm1 %in% "Liban-Nord", "North", adm1),
-         adm1 = if_else(adm1 %in% "Liban-Sud", "South", adm1),
-         adm1 = if_else(adm1 %in% "Mont-Liban", "Mount Lebanon", adm1),
-         adm1 = if_else(adm1 %in% "Nabatiye", "Al Nabatieh", adm1)) 
-unique(confessional$adm1)
-
-lebanon_adm1 <- lebanon_adm1 %>%
-  mutate(adm1 = if_else(adm1 %in% "Aakkâr", "Akkar", adm1),
-         adm1 = if_else(adm1 %in% "Nabatîyé", "Al Nabatieh", adm1),
-         adm1 = if_else(adm1 %in% "Beyrouth", "Beirut", adm1),
-         adm1 = if_else(adm1 %in% "Béqaa", "Bekaa", adm1),
-         adm1 = if_else(adm1 %in% "Liban-Nord", "North", adm1),
-         adm1 = if_else(adm1 %in% "Mont-Liban", "Mount Lebanon", adm1),
-         adm1 = if_else(adm1 %in% "Liban-Sud", "South", adm1),
-         adm1 = if_else(adm1 %in% "Nabatîyé", "Al Nabatieh", adm1),
-         )
-unique(lebanon_adm1$adm1)
-unique(acled$adm1)
+```{r descriptive_religion}
+sect_summary <- confessional %>%
+  group_by(sect) %>%
+  summarise(sum = sum(adm1_sect)) %>%
+  arrange(desc(sum))
+sect_summary 
 ```
+
+```{r join}
+#joining confessional + union by iso
+lebanon_confessional <- left_join(lebanon_adm1, confessional, by = "adm1")
+nrow(lebanon_confessional)
+str(lebanon_confessional)
+
+lebanon_confessional <- lebanon_confessional %>%
+  group_by(sect) %>%
+  select(adm1, sect, adm1_sect, geometry)
+str(lebanon_confessional) #we still have multiple "Christian" entries, maybe collapse into one
+
+#option 1
+confessional_map <- lebanon_confessional %>%
+  group_by(adm1) %>%
+  summarise(sect_count = sum(adm1_sect)) %>%
+  mapview(zcol = "sect_count")
+confessional_map
+
+#option 2
+mapview(lebanon_confessional, zcol = "adm1_sect")
+```
+
+
+
+## IV. Discussion
+### 4.1 Interpretation of Findings
+    - Discuss patterns observed in attack probabilities, casualties, and attack types.
+    - Relate findings to the political and social dynamics of the ethno-religious groups in Lebanon.
+
+### 4.2 Implications
+    - Reflect on how this spatial analysis could inform policy, aid distribution, or conflict resolution efforts.
+    - Consider the potential impact on displaced populations and refugees.
+
+## V. Conclusion and Recommendations
+- Summary of Findings
+    + Restate key results related to each research question.
+- Future Research
+    + Spatial-Temporal comparison of attack patterns on identity groups between the 2006 Lebanon
+      - RDD for both periods
+    + Incorporate Admin 2 level data
+    + UNFIL border
+    + Model for AID cost per attack Type
+    + AID implications per identity group
+- Policy Recommendations
+    + Propose recommendations for humanitarian agencies and policymakers.
