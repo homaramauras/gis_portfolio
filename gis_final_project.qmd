@@ -1,6 +1,6 @@
 ---
 title: "GIS Final Project"
-author: "Homar A. Maurás Rodríguez"
+author: "Homar A. Maurás Rodríguez & Tianyu Bai"
 format: html
 editor: visual
 execute: 
@@ -43,8 +43,82 @@ acled$event_month <- ymd(acled$event_month) #converting event_month into date fo
 acled$prior_month <- floor_date(acled$event_month - days(1), "month") #adjust to the prior month by subtracting one day, then getting the first day of that month
 acled$prior_month <- format(acled$prior_month, "%B, %Y") #format the 'prior_month' column as "Month, Year"
 acled <- acled %>% relocate(prior_month, .before = event_month) #changing column order
-head(acled$prior_month)
 ```
+
+# Understanding Israeli attack patterns across ethno-religious groups in Lebanon
+
+## Introduction
+
+The history of conflict between Israel and Lebanon, particularly involving Hezbollah, is marked by recurring hostilities and complex ethno-religious dynamics. The most recent escalation began on October 7, 2023 which led to a 14-month conflict between Israel and Hezbollah. The recent escalation between Israel and Hezbollah has had profound implications for Lebanon’s ethno-religious groups. Shiite communities have borne the brunt of the conflict due to their association with Hezbollah, while some Christian areas have remained relatively unscathed. Understanding these patterns is crucial for analyzing the broader socio-political impact of the conflict on Lebanon's diverse society.
+
+## Objective
+
+### Research Question:
+
+1.  What is P(attack \| identity)?
+2.  Are casualties constant across identity groups?
+3.  Are types of attacks the same across identity groups?
+
+### Variables of Interest
+
+-   Identity
+-   Governorates (admin level 1)
+-   Attack type
+-   Casualties
+
+### Religions in Lebanon
+
+### Significance
+
+Understanding the spatial distribution of attacks across identity groups in Lebanon is critical to shape effective aid interventions.
+
+## Data and Methodology
+
+### Data Sources
+* Population statistics: World Health Organization (WHO) Data & CIA World Handbook
+* Confessional distribution: United Nations Office for the Coordination of Humanitarian Affairs (UN OCHA)
+* Administrative data: Human Data Exchange
+* Attack reports: Armed Conflict Location & Event Data (ACLED)
+
+
+### Scope
+
+#### Level of Analysis
+The variables of interest are measured at the Governorate (administrative 1) level. Lebanon is divided into 9 Governorates:
+
+1.  Akkar
+2.  Baalbeck-Hermel
+3.  Beirut (capital)
+4.  Bekaa
+5.  Mount Lebanon
+6.  Al Nabatieh
+7.  North Lebanon
+8.  South Lebanon
+9.  Keserwan-Jbeil
+
+However, given that Keserwan-Jbeil was only formally established in 2017, splitting off from Mount Lebanon, the available data only reflects estimates for eight out of the nine Governorates.
+
+
+### Demographics
+As of 2023, the World Health Organization (WHO) estimates Lebanon's population at approximately 5.77 million. Recent U.S. State Department reports indicate that Syrian refugees account for around 1.5 million of this population, while Palestinian refugees are estimated at 250,000. Other refugee groups collectively number approximately 11,645. Furthermore, Lebanon's population is comprised of a plethora of ethno-religious groups across the country. Much can be learned from 
+
+
+#### Confessional Distribution in Lebanon
+Lebanon’s political system is based on a confessional model, where power is divided among these groups. This arrangement has fostered cooperation but also entrenched sectarian divisions, influencing everything from governance to social interactions.
+
+*Christians*
+Lebanon’s Christians are a diverse group, including Maronite Catholics, Greek Orthodox, Greek Catholics (Melkites), Armenian Orthodox, Armenian Catholics, Protestants, and other smaller denominations. Maronites, the largest Christian sect, are in communion with the Roman Catholic Church but retain unique liturgical practices. Historically, Christians held significant political influence, with the presidency reserved for a Maronite under the National Pact of 1943. Their communities are spread across the country, particularly in Mount Lebanon and parts of Beirut, where they play a central role in the cultural and political fabric of the nation.
+
+*Sunni Muslim*
+Sunni Muslims in Lebanon follow the Sunni branch of Islam, emphasizing the traditions of the Prophet Muhammad as interpreted by scholarly consensus. Sunni Muslims were allocated the position of Prime Minister in Lebanon's power-sharing arrangement, reflecting their political prominence. Sunni communities are primarily located in urban centers such as Beirut, Tripoli, and Sidon, as well as in parts of the Bekaa Valley and the south. They have historically been influential in Lebanon’s economic and political spheres, serving as a counterbalance to other religious groups in the country.
+
+*Shi’i Muslims*
+Shi’i Muslims form Lebanon's largest Muslim sect and are followers of the Shia branch of Islam, which emphasizes the leadership of the Prophet Muhammad's descendants, particularly Ali and his lineage. Traditionally marginalized in Lebanon's political system, Shi’i Muslims gained prominence through the emergence of Hezbollah in the 1980s, which serves as both a political party and a militant force. The Shi’i population is concentrated in southern Lebanon, the Bekaa Valley, and the southern suburbs of Beirut (known as Dahiyeh), areas that have been central to Lebanon’s recent political and military conflicts.
+
+*Druze*
+The Druze, a distinct religious group with roots in Islam, practice an esoteric faith that incorporates elements of Neoplatonism, Gnosticism, and other philosophical traditions. Known for their secrecy, the Druze do not proselytize, and their religious texts are accessible only to an elite group of initiates. Politically, the Druze have maintained a significant role despite being a numerical minority, often serving as power brokers in Lebanon’s sectarian political system. Their communities are concentrated in the Chouf Mountains, Mount Lebanon, and parts of the Bekaa Valley, where they have historically formed close-knit and influential enclaves.
+
+
 
 ```{r names}
 # replace sect to Christian, Shia, Sunni, Druze, and Other
@@ -80,42 +154,4 @@ lebanon_adm1 <- lebanon_adm1 %>%
          )
 unique(lebanon_adm1$adm1)
 unique(acled$adm1)
-```
-
-
-```{r union}
-#combining Jbeil with Mount Lebanon using st_union
-###view the original map
-adm1_map <- lebanon_adm1 %>%
-  select(adm1, geometry) %>%
-  mapview()
-adm1_map
-
-lebanon_union <- lebanon_adm1 %>%
-  mutate(adm1 = ifelse(adm1 == "Keserwan-Jbeil", "Mount Lebanon", adm1)) %>%
-  group_by(adm1, iso) %>%
-  summarize(geometry = st_union(geometry), .groups = "drop")
-
-#checking the updated geometries
-unique(lebanon_union$adm1)
-union_map <- lebanon_union %>%
-  select(adm1, geometry) %>%
-  mapview(layer.name = "Governorate")
-union_map 
-
-#THE SOUTHERN BORDER OF JBEIL DID NOT DISAPPEAR
-```
-
-
-```{r descriptive_religion}
-sect_summary <- confessional %>%
-  group_by(sect) %>%
-  summarise(sum = sum(adm1_sect)) %>%
-  arrange(desc(sum))
-sect_summary 
-```
-
-```{r join}
-#joining acled + confessional by iso
-
 ```
