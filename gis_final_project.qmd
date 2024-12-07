@@ -315,21 +315,18 @@ ggplot(data = map_data) +
 -   Highlight patterns or notable differences.
 
 ```{r}
-# Summarize attack types by identity group
 attack_type_summary <- combined_data %>%
-  group_by(sect, event_type) %>%  # Group by identity and attack type
+  group_by(sect, event_type) %>%
   summarise(
-    count = n(),  # Count occurrences of each attack type
+    total_attacks = sum(events, na.rm = TRUE),  # Summarize total attacks using `events`
     .groups = "drop"
   )
-
-# View the summary table
 print(attack_type_summary)
 
 ```
 
 ```{r}
-ggplot(attack_type_summary, aes(x = event_type, y = count, fill = sect)) +
+ggplot(attack_type_summary, aes(x = event_type, y = total_attacks, fill = sect)) +
   geom_bar(stat = "identity", position = "dodge") +
   labs(
     title = "Comparison of Attack Types Across Identity Groups",
@@ -346,10 +343,10 @@ ggplot(attack_type_summary, aes(x = event_type, y = count, fill = sect)) +
 attack_type_proportions <- attack_type_summary %>%
   group_by(sect) %>%
   mutate(
-    proportion = count / sum(count, na.rm = TRUE)
+    proportion = total_attacks / sum(total_attacks, na.rm = TRUE)  # Use the correct column
   )
 
-# View the proportion table
+# View the result
 print(attack_type_proportions)
 
 ```
