@@ -226,15 +226,133 @@ The Druze, a distinct religious group with roots in Islam, practice an esoteric 
     -   P(attack \| identity)= Total attacks in LebanonNumber of attacks on group​
 -   Discuss patterns or disparities.
 
+```{r}
+# Summarize attack data by governorate
+attack_summary <- acled %>%
+  group_by(adm1) %>%
+  summarise(total_attacks = sum(events, na.rm = TRUE))
+
+# Suppress grouping warning by using `.groups` argument
+population_summary <- lebanon_confessional %>%
+  group_by(adm1, sect) %>%
+  summarise(
+    total_population = sum(total_sect, na.rm = TRUE),  # Replace 'adm1_sect' with the actual population column name
+    .groups = "drop"  # Remove grouping after summarise
+  )
+
+attack_summary <- acled %>%
+  group_by(adm1) %>%
+  summarise(
+    total_attacks = sum(events, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Join population and attack summaries
+combined_data <- population_summary %>%
+  left_join(attack_summary, by = "adm1") %>%
+  mutate(
+    P_attack_given_identity = total_attacks / total_population
+  )
+
+# View the results
+print(combined_data)
+
+```
+
 ### 3.3 Casualties Per Identity Group
 
 -   Show casualty distribution and normalize values by population size within each identity group for comparison.
 -   Include visualizations such as bar charts or proportional symbol maps.
 
+```{r}
+normalized_casualties <- combined_data %>%
+  group_by(sect) %>%
+  summarise(
+    total_population = sum(total_population, na.rm = TRUE),
+    total_casualties = sum(P_attack_given_identity * total_population, na.rm = TRUE),  # Actual casualties
+    normalized_casualties = total_casualties / total_population  # Normalize by population
+  )
+
+# View results
+print(normalized_casualties)
+```
+
+```{r}
+# Bar chart for normalized casualties
+ggplot(normalized_casualties, aes(x = sect, y = normalized_casualties, fill = sect)) +
+  geom_bar(stat = "identity") +
+  labs(
+    title = "Normalized Casualties per Identity Group",
+    x = "Identity Group",
+    y = "Normalized Casualties (Casualties per Population)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+```
+
+```{r}
+library(sf)  # For spatial data handling
+
+# Combine normalized casualties with spatial geometries
+map_data <- combined_data %>%
+  mutate(total_casualties = P_attack_given_identity * total_population)  # Calculate casualties per region
+
+# Proportional symbol map
+ggplot(data = map_data) +
+  geom_sf(aes(fill = total_casualties), color = NA) +
+  scale_fill_viridis_c(option = "viridis", name = "Total Casualties") +
+  labs(
+    title = "Proportional Symbol Map of Total Casualties",
+    caption = "Casualties derived from P_attack_given_identity."
+  ) +
+  theme_minimal()
+```
+
 ### 3.4 Attack Types and Variations
 
 -   Compare the types of attacks (e.g., airstrikes, ground operations) across identity groups. Use tables or clustered bar charts.
 -   Highlight patterns or notable differences.
+
+```{r}
+# Summarize attack types by identity group
+attack_type_summary <- combined_data %>%
+  group_by(sect, event_type) %>%  # Group by identity and attack type
+  summarise(
+    count = n(),  # Count occurrences of each attack type
+    .groups = "drop"
+  )
+
+# View the summary table
+print(attack_type_summary)
+
+```
+
+```{r}
+ggplot(attack_type_summary, aes(x = event_type, y = count, fill = sect)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(
+    title = "Comparison of Attack Types Across Identity Groups",
+    x = "Attack Type",
+    y = "Number of Attacks",
+    fill = "Identity Group"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r}
+# Calculate proportions for each attack type within identity groups
+attack_type_proportions <- attack_type_summary %>%
+  group_by(sect) %>%
+  mutate(
+    proportion = count / sum(count, na.rm = TRUE)
+  )
+
+# View the proportion table
+print(attack_type_proportions)
+
+```
 
 #### 3.5 Comparison of Attack Patterns Prior and Post October 7th (OPTIONAL)
 
@@ -248,54 +366,3 @@ sect_summary <- confessional %>%
   arrange(desc(sum))
 sect_summary 
 ```
-
-```{r join}
-#joining confessional + union by iso
-lebanon_confessional <- left_join(lebanon_adm1, confessional, by = "adm1")
-nrow(lebanon_confessional)
-str(lebanon_confessional)
-
-lebanon_confessional <- lebanon_confessional %>%
-  group_by(sect) %>%
-  select(adm1, sect, total_sect, geometry)
-str(lebanon_confessional) #we still have multiple "Christian" entries, maybe collapse into one
-
-#option 1
-confessional_map <- lebanon_confessional %>%
-  group_by(adm1) %>%
-  summarise(sect_count = sum(total_sect)) %>%
-  mapview(zcol = "sect_count")
-confessional_map
-
-#option 2
-mapview(lebanon_confessional, zcol = "total_sect")
-```
-
-## IV. Discussion
-
-### 4.1 Interpretation of Findings
-
-- Discuss patterns observed in attack probabilities, casualties, and attack types.
-- Relate findings to the political and social dynamics of the ethno-religious groups in Lebanon.
-
-
-### 4.2 Implications
-
-
-- Reflect on how this spatial analysis could inform policy, aid distribution, or conflict resolution efforts.
-- Consider the potential impact on displaced populations and refugees.
-
-
-## V. Conclusion and Recommendations
-
--   Summary of Findings
-    -   Restate key results related to each research question.
--   Future Research
-    -   Spatial-Temporal comparison of attack patterns on identity groups between the 2006 Lebanon
-        -   RDD for both periods
-    -   Incorporate Admin 2 level data
-    -   UNFIL border
-    -   Model for AID cost per attack Type
-    -   AID implications per identity group
--   Policy Recommendations
-    -   Propose recommendations for humanitarian agencies and policymakers.
