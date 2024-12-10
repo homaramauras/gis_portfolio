@@ -18,46 +18,47 @@ library(lubridate) |> suppressPackageStartupMessages()
 ```
 
 ```{r datasets}
-acled <- read.csv('/Users/homi/Data Science/datasets/acled_aggregated_20060.csv')
-confessional <- read_csv('/Users/homi/Data Science/datasets/adm1_confessional.csv')
-lebanon_adm1 <- st_read("/Users/homi/Data Science/datasets/geoBoundaries-LBN-ADM1-all/geoBoundaries-LBN-ADM1.shp")
+acled_df <- read.csv('/Users/homi/Data Science/datasets/acled_aggregated_20060.csv')
+confessional_df <- read_csv('/Users/homi/Data Science/datasets/adm1_confessional.csv')
+lebanon_adm1_sf <- st_read("/Users/homi/Data Science/datasets/geoBoundaries-LBN-ADM1-all/geoBoundaries-LBN-ADM1.shp")
 ```
 
 ```{r formatting}
 #lowercase
-names(acled) <- tolower(names(acled))
-names(confessional) <- tolower(names(confessional))
-names(lebanon_adm1) <- tolower(names(lebanon_adm1))
+names(acled_df) <- tolower(names(acled_df))
+names(confessional_df) <- tolower(names(confessional_df))
+names(lebanon_adm1_sf) <- tolower(names(lebanon_adm1_sf))
 
 #selecting relevant variables
-acled <- acled %>% select(admin1, event.month, sub.event.type, events)
-lebanon_adm1 <- lebanon_adm1 %>% select(shapename, shapeiso, geometry)
+acled_df <- acled_df %>% select(admin1, event.month, sub.event.type, events)
+lebanon_adm1_sf <- lebanon_adm1_sf %>% select(shapename, shapeiso, geometry)
 
 #renaming variables
-acled <- acled %>% rename(adm1 = admin1, event_month = event.month, event_type = sub.event.type)
-confessional <- confessional %>% rename(iso = iso_3166_2, sect = reported_sect, total_sect = adm1_total)
-lebanon_adm1 <- lebanon_adm1 %>% rename(adm1 = shapename, iso = shapeiso)
+acled_df <- acled_df %>% rename(adm1 = admin1, event_month = event.month, event_type = sub.event.type)
+confessional_df <- confessional_df %>% rename(iso = iso_3166_2, sect = reported_sect, total_sect = adm1_total)
+lebanon_adm1_sf <- lebanon_adm1_sf %>% rename(adm1 = shapename, iso = shapeiso)
 
 #replace event_month dates with corresponding month name (using lubridate)
-acled$event_month <- ymd(acled$event_month) #converting event_month into date format
-acled$prior_month <- floor_date(acled$event_month - days(1), "month") #adjust to the prior month by subtracting one day, then getting the first day of that month
-acled$prior_month <- format(acled$prior_month, "%B, %Y") #format the 'prior_month' column as "Month, Year"
-acled <- acled %>% relocate(prior_month, .before = event_month) #changing column order
+acled_df$event_month <- ymd(acled_df$event_month) #converting event_month into date format
+acled_df$prior_month <- floor_date(acled_df$event_month - days(1), "month") #adjust to the prior month by subtracting one day, then getting the first day of that month
+acled_df$prior_month <- format(acled_df$prior_month, "%B, %Y") #format the 'prior_month' column as "Month, Year"
+acled_df <- acled_df %>% relocate(prior_month, .before = event_month) #changing column order
+acled_df <- acled_df %>% select(adm1, prior_month, event_type, events)
 ```
 
 ```{r names}
 # replace sect to Maronite, Christian Minorities, Shia, Sunni, Druze, and Other
-confessional <- confessional %>%
+confessional_df <- confessional_df %>%
   mutate(sect = if_else(sect %in% c("Armenian Catholic", "Armenian Orthodox", 
                                     "Christian Minorities", "Greek Catholic", 
                                     "Greek Orthodox", "Protestant"), 
                         "Christian Minorities", sect)) #replacing christian groups into broader christian category
-confessional <- confessional %>%
+confessional_df <- confessional_df %>%
   mutate(sect = if_else(sect %in% "Alawite", 
                         "Shia", sect)) #including Alawite in Shia faith
 
 #replacing adm1 names to english
-confessional <- confessional %>% #changing confessional
+confessional_df <- confessional_df %>% #changing confessional_df
   mutate(adm1 = if_else(adm1 %in% "Bayrut", "Beirut", adm1),
          adm1 = if_else(adm1 %in% "Beqaa", "Bekaa", adm1),
          adm1 = if_else(adm1 %in% "Liban-Nord", "North", adm1),
@@ -65,7 +66,7 @@ confessional <- confessional %>% #changing confessional
          adm1 = if_else(adm1 %in% "Mont-Liban", "Mount Lebanon", adm1),
          adm1 = if_else(adm1 %in% "Nabatiye", "Al Nabatieh", adm1)) 
 
-lebanon_adm1 <- lebanon_adm1 %>%
+lebanon_adm1_sf <- lebanon_adm1_sf %>%
   mutate(adm1 = if_else(adm1 %in% "Aakkâr", "Akkar", adm1),
          adm1 = if_else(adm1 %in% "Nabatîyé", "Al Nabatieh", adm1),
          adm1 = if_else(adm1 %in% "Beyrouth", "Beirut", adm1),
@@ -142,7 +143,7 @@ The variables of interest are measured at the Governorate (administrative 1) lev
 9.  Keserwan-Jbeil
 
 ```{r og_map}
-adm1_map <- lebanon_adm1 %>%
+adm1_map <- lebanon_adm1_sf %>%
   select(adm1, geometry) %>%
   mapview(layer.name = "Governorate")
 adm1_map
@@ -152,18 +153,18 @@ Keserwan-Jbeil was officially established in 2017, separating from Mount Lebanon
 
 ```{r union}
 #combining Jbiel and Mount Lebanon
-lebanon_union <- lebanon_adm1 %>%
+union_map <- lebanon_adm1_sf %>%
   slice(c(4,9)) %>% 
   mutate(geometry = st_make_valid(geometry)) %>%
   summarize(geometry = st_union(geometry)) %>%
   mutate(adm1 = "Mount Lebanon") %>%
   mutate(iso = "LB-JL")
   
-lebanon_adm1 <- lebanon_adm1 %>%
+lebanon_adm1_sf <- lebanon_adm1_sf %>%
   slice(-c(4,9)) %>% 
-  bind_rows(lebanon_union)
+  bind_rows(union_map)
 
-union_map <- lebanon_adm1 %>%
+union_map <- lebanon_adm1_sf %>%
   select(adm1, geometry) %>%
   mapview(layer.name = "Governorate")
 union_map 
@@ -174,9 +175,8 @@ union_map
 As stated previously, the last census in Lebanon was performed in 1932– consequently, the absence of transparent data on the country’s demographic makeup becomes the largest part of the puzzle. As of 2023, the World Health Organization (WHO) estimates Lebanon's population at approximately 5.77 million. Recent U.S. State Department reports indicate that Syrian refugees account for around 1.5 million of this population, while Palestinian refugees are estimated at 250,000. Other refugee groups collectively number, approximately, 11,645. While there are no official figures from the Lebanese government, our closest proxy for population is the number of registered voters, which is:
 
 ```{r voters}
-sum(confessional$total_sect)
+sum(confessional_df$total_sect)
 ```
-
 
 #### 2.4.1 Confessional Distribution in Lebanon
 
@@ -188,36 +188,82 @@ Lebanon’s political system is based on a confessional model, where power is di
 4.  Shia Muslims
 5.  Druze
 
+```{r descriptive_religion}
+sect_summary <- confessional_df %>%
+  group_by(sect) %>%
+  summarise(sum = sum(total_sect)) %>%
+  arrange(desc(sum))
+sect_summary 
+```
+
 This arrangement has fostered cooperation but also entrenched sectarian divisions, influencing everything from governance to social interactions.
 
 *Maronites*
 
 Maronites are Lebanon's largest Christian sect and hold a unique position in the country's socio-political landscape. In communion with the Roman Catholic Church, the Maronites have maintained distinct liturgical practices, contributing to their strong cultural identity. Historically, they have been one of the most politically powerful groups in Lebanon, with the presidency reserved for a Maronite under the National Pact of 1943. This arrangement solidified their influence during Lebanon's formative years, allowing them to shape the nation's political and economic systems. Their communities are predominantly concentrated in Mount Lebanon and parts of Beirut, where they have historically formed the backbone of Lebanon's middle and upper classes. Despite demographic changes and shifting political dynamics, the Maronites continue to wield significant influence, often serving as a bridge between Lebanon's Christian and Muslim populations.
 
-*Non-Maronite Christian Minorities* 
+*Non-Maronite Christian Minorities*
 
 Non-Maronite Christian minorities in Lebanon encompass a diverse range of denominations, including Greek Orthodox, Greek Catholics (Melkites), Armenian Orthodox, Armenian Catholics, Protestants, and other smaller Christian groups. Unlike the Maronites, these groups have not historically enjoyed the same level of political power or visibility. However, they play a crucial role in Lebanon's religious mosaic, often serving as cultural and economic contributors within their communities. The Greek Orthodox, for instance, traditionally hold the position of Deputy Prime Minister, reflecting their role in Lebanon's sectarian power-sharing arrangement. Armenian Christians, concentrated in areas like Bourj Hammoud and Anjar, have cultivated strong communal networks and cultural institutions, helping to preserve their heritage. While non-Maronite Christian minorities often align with the broader Christian political agenda, their distinct identities and historical experiences set them apart within Lebanon's complex confessional landscape.
 
-*Sunni Muslim* 
+*Sunni Muslim*
 
 Sunni Muslims, who adhere to the Sunni branch of Islam, form one of Lebanon's key religious communities and hold a historically prominent role in the country's socio-political framework. Sunnis emphasize adherence to the traditions of the Prophet Muhammad, as interpreted through scholarly consensus, making them part of the broader Sunni majority in the Islamic world. In Lebanon's sectarian power-sharing system, the position of Prime Minister is reserved for a Sunni Muslim, underscoring their political significance. Sunni communities are predominantly located in major urban centers such as Beirut, Tripoli, and Sidon, as well as parts of the Bekaa Valley and southern Lebanon. Historically, they have been influential in Lebanon's economic and political spheres, often acting as a counterbalance to Shia and Christian groups. Despite internal divisions and the challenges posed by regional and domestic conflicts, Sunnis continue to play a vital role in shaping Lebanon’s political discourse and development.
 
-*Shia Muslims* 
+*Shia Muslims*
 
 Shia Muslims, the largest Muslim sect in Lebanon, follow the Shia branch of Islam, which emphasizes the spiritual and political leadership of the Prophet Muhammad's descendants, particularly Ali and his lineage. Traditionally marginalized within Lebanon's political and economic systems, the Shia community experienced a significant transformation in the late 20th century with the emergence of Hezbollah. Established in the 1980s, Hezbollah has become a dominant political and military force, providing the Shia community with unprecedented political representation and a voice in regional geopolitics. Shia populations are concentrated in southern Lebanon, the Bekaa Valley, and the southern suburbs of Beirut (known as Dahiyeh), areas that have faced disproportionate challenges during periods of conflict. Their association with Hezbollah has made them a focal point of political contention and military targeting, positioning them at the center of Lebanon's contemporary struggles. Despite these challenges, the Shia community remains a crucial and dynamic force in the country’s socio-political landscape.
 
-*Druze* 
+*Druze*
 
 The Druze, a distinct religious group with roots in Islam, practice an esoteric faith that incorporates elements of Neoplatonism, Gnosticism, and other philosophical traditions. Known for their secrecy, the Druze do not proselytize, and their religious texts are accessible only to an elite group of initiates. Despite being a numerical minority, the Druze have maintained a significant political and social presence, often serving as power brokers in Lebanon's complex sectarian system. Politically, the Druze are represented through the leadership of influential families, most notably the Jumblatt family, who have played pivotal roles in national and regional politics. The Druze are concentrated in the Chouf Mountains, Mount Lebanon, and parts of the Bekaa Valley, where they form tight-knit communities that emphasize solidarity and mutual support. Their unique position in Lebanon's confessional mosaic allows them to navigate alliances flexibly, often bridging divides between larger religious groups while preserving their distinct identity and autonomy.
 
 ## III. Analysis
 
+```{r join}
+#joining confessional_df + union by iso
+population_sf <- left_join(lebanon_adm1_sf, confessional_df, by = "adm1")
+population_sf <- population_sf %>%
+  group_by(adm1, sect) %>%
+  select(adm1, sect, total_sect, geometry)
+
+#summarizing population_sf
+population_summary_sf <- population_sf %>%
+  group_by(adm1, sect) %>%
+  summarise(total_population = sum(total_sect, na.rm = TRUE), 
+            .groups = "drop")
+
+#summarizing for total attacks
+attack_summary_df <- acled_df %>%
+  group_by(adm1) %>% 
+  summarize(total_attacks = sum(events, na.rm = TRUE))
+
+#joining attack and population summaries
+combined_summary_sf <- population_summary_sf %>%
+  left_join(attack_summary_df, by = "adm1") %>%
+  mutate(P_attack_given_identity = total_attacks / total_population)
+```
+
 ### 3.1 Spatial Analysis of Attacks
 
 -   Present maps and tables showing:
     -   Attack frequencies by governorate.
-    -   Refugee distributions relative to attack locations.
     -   Identity group distribution by governorate.
+
+```{r 3.1_attacks_by_governorate}
+# Summarize attack data by governorate
+attack_summary_df
+```
+
+
+```{r 3.1_attack_by_governorate}
+attack_map <- ggplot(combined_summary_sf) + 
+  geom_sf(aes(fill = total_attacks)) +
+  scale_fill_viridis_c(option = "viridis", name = "Total Attacks") +
+  labs(title = "Total Number of Attacks by Governorate") +
+  theme_minimal()
+attack_map
+```
 
 ### 3.2 Likelihood of Attacks for given Identity
 
@@ -226,36 +272,7 @@ The Druze, a distinct religious group with roots in Islam, practice an esoteric 
     -   P(attack \| identity)= Total attacks in LebanonNumber of attacks on group​
 -   Discuss patterns or disparities.
 
-```{r}
-# Summarize attack data by governorate
-attack_summary <- acled %>%
-  group_by(adm1) %>%
-  summarise(total_attacks = sum(events, na.rm = TRUE))
-
-# Suppress grouping warning by using `.groups` argument
-population_summary <- lebanon_confessional %>%
-  group_by(adm1, sect) %>%
-  summarise(
-    total_population = sum(total_sect, na.rm = TRUE),  # Replace 'adm1_sect' with the actual population column name
-    .groups = "drop"  # Remove grouping after summarise
-  )
-
-attack_summary <- acled %>%
-  group_by(adm1) %>%
-  summarise(
-    total_attacks = sum(events, na.rm = TRUE),
-    .groups = "drop"
-  )
-
-# Join population and attack summaries
-combined_data <- population_summary %>%
-  left_join(attack_summary, by = "adm1") %>%
-  mutate(
-    P_attack_given_identity = total_attacks / total_population
-  )
-
-# View the results
-print(combined_data)
+```{r 3.2}
 
 ```
 
@@ -356,10 +373,28 @@ print(attack_type_proportions)
 -   Map and analyze attack frequencies and distributions of 1 year prior October 7th and post October 7th.
 -   Perform statistical tests if applicable to assess whether attack rates differ significantly between time periods.
 
-```{r descriptive_religion}
-sect_summary <- confessional %>%
-  group_by(sect) %>%
-  summarise(sum = sum(total_sect)) %>%
-  arrange(desc(sum))
-sect_summary 
-```
+## IV. Discussion
+
+### 4.1 Interpretation of Findings
+
+-   Discuss patterns observed in attack probabilities, casualties, and attack types.
+-   Relate findings to the political and social dynamics of the ethno-religious groups in Lebanon.
+
+### 4.2 Implications
+
+-   Reflect on how this spatial analysis could inform policy, aid distribution, or conflict resolution efforts.
+-   Consider the potential impact on displaced populations and refugees.
+
+## V. Conclusion and Recommendations
+
+-   Summary of Findings
+    -   Restate key results related to each research question.
+-   Future Research
+    -   Spatial-Temporal comparison of attack patterns on identity groups between the 2006 Lebanon
+        -   RDD for both periods
+    -   Incorporate Admin 2 level data
+    -   UNFIL border
+    -   Model for AID cost per attack Type
+    -   AID implications per identity group
+-   Policy Recommendations
+    -   Propose recommendations for humanitarian agencies and policymakers.
