@@ -18,22 +18,41 @@ library(lubridate) |> suppressPackageStartupMessages()
 ```
 
 ```{r datasets}
-acled_df <- read.csv('/Users/homi/Data Science/datasets/acled_aggregated_20060.csv')
+acled_attacks_df <- read_csv('/Users/homi/Data Science/datasets/acled_aggregated_attacks.csv')
+acled_casualties_df <- read.csv('/Users/homi/Data Science/datasets/acled_aggregated_casualties.csv')
 confessional_df <- read_csv('/Users/homi/Data Science/datasets/adm1_confessional.csv')
-lebanon_adm1_sf <- st_read("/Users/homi/Data Science/datasets/geoBoundaries-LBN-ADM1-all/geoBoundaries-LBN-ADM1.shp")
+lebanon_adm1_sf <- st_read('/Users/homi/Data Science/datasets/geoBoundaries-LBN-ADM1-all/geoBoundaries-LBN-ADM1.shp')
+```
+
+```{r joinin_acled}
+#REVISE THIS NOW
+
+#making sure names between acled_attacks and acled_casualties are the same
+names(acled_attacks_df) <- gsub(" ", ".", names(acled_attacks_df))
+
+#change acled_casualties_df$Event.month into Date and acled_casualties_df$Events into num format
+acled_casualties_df$Event.month <- as.Date(acled_casualties_df$Event.month, format = "%Y-%m-%d")
+acled_casualties_df$Fatalities <- as.numeric(acled_casualties_df$Fatalities)
+
+#renaming acled_attacks_df$"Sub-Event.Type to "Sub.Event.Type"
+acled_attacks_df <- rename(acled_attacks_df, "Sub.Event.Type" = "Sub-Event.Type")
+
+acled_df <- left_join(acled_casualties_df, acled_attacks_df, by = c("Country", "Admin1", "Event.month", "Sub.Event.Type"))
+
 ```
 
 ```{r formatting}
+
 #lowercase
 names(acled_df) <- tolower(names(acled_df))
 names(confessional_df) <- tolower(names(confessional_df))
 names(lebanon_adm1_sf) <- tolower(names(lebanon_adm1_sf))
 
 #selecting relevant variables
-acled_df <- acled_df %>% select(admin1, event.month, sub.event.type, events)
+acled_df <- acled_df %>% select(admin1, event.month, sub.event.type, events, fatalities)
 lebanon_adm1_sf <- lebanon_adm1_sf %>% select(shapename, shapeiso, geometry)
 
-#renaming variables
+#renaming variablesl
 acled_df <- acled_df %>% rename(adm1 = admin1, event_month = event.month, event_type = sub.event.type)
 confessional_df <- confessional_df %>% rename(iso = iso_3166_2, sect = reported_sect, total_sect = adm1_total)
 lebanon_adm1_sf <- lebanon_adm1_sf %>% rename(adm1 = shapename, iso = shapeiso)
@@ -43,7 +62,8 @@ acled_df$event_month <- ymd(acled_df$event_month) #converting event_month into d
 acled_df$prior_month <- floor_date(acled_df$event_month - days(1), "month") #adjust to the prior month by subtracting one day, then getting the first day of that month
 acled_df$prior_month <- format(acled_df$prior_month, "%B, %Y") #format the 'prior_month' column as "Month, Year"
 acled_df <- acled_df %>% relocate(prior_month, .before = event_month) #changing column order
-acled_df <- acled_df %>% select(adm1, prior_month, event_type, events)
+acled_df <- acled_df %>% select(adm1, prior_month, event_type, events, fatalities)
+acled_df <- rename(acled_df, month = prior_month)
 ```
 
 ```{r names}
@@ -236,12 +256,14 @@ population_summary_sf <- population_sf %>%
 #summarizing for total attacks
 attack_summary_df <- acled_df %>%
   group_by(adm1) %>% 
-  summarize(total_attacks = sum(events, na.rm = TRUE))
+  summarize(total_attacks = sum(events, na.rm = TRUE),
+            total_casualties = sum(fatalities, na.rm = TRUE))
 
 #joining attack and population summaries
 combined_summary_sf <- population_summary_sf %>%
   left_join(attack_summary_df, by = "adm1") %>%
-  mutate(P_attack_given_identity = total_attacks / total_population)
+  mutate(p_attack_given_identity = total_attacks / total_population,
+         p_casualties_given_identity = total_casualties / total_population) #should we adjust proportional to the population for adm1?
 ```
 
 ### 3.1 Spatial Analysis of Attacks
@@ -252,9 +274,10 @@ combined_summary_sf <- population_summary_sf %>%
 
 ```{r 3.1_attacks_by_governorate}
 # Summarize attack data by governorate
-attack_summary_df
+attack_summary_df %>% 
+  select(adm1, total_attacks) %>% 
+  print()
 ```
-
 
 ```{r 3.1_attack_by_governorate}
 attack_map <- ggplot(combined_summary_sf) + 
@@ -265,6 +288,12 @@ attack_map <- ggplot(combined_summary_sf) +
 attack_map
 ```
 
+```{r 3.1_identity_by_governorate}
+########################### MAKE A MAP OF SECT BY GOVERNORATE
+#### Maybe we can make one map for every sect and plot them side by side
+
+```
+
 ### 3.2 Likelihood of Attacks for given Identity
 
 -   Calculate and present probabilities for each identity group using:
@@ -272,9 +301,15 @@ attack_map
     -   P(attack \| identity)= Total attacks in LebanonNumber of attacks on group​
 -   Discuss patterns or disparities.
 
-```{r 3.2}
-
+```{r 3.2_attack_given_identity}
+normalized_attacks <- combined_summary_sf %>% 
+  group_by(sect) %>% 
+  summarise(total_population = sum(total_population, na.rm = TRUE),
+    total_attacks = sum(p_attack_given_identity * total_population, na.rm = TRUE),
+    normalized_attacks = total_attacks / total_population)
+print(normalized_attacks)
 ```
+
 
 ### 3.3 Casualties Per Identity Group
 
@@ -282,15 +317,12 @@ attack_map
 -   Include visualizations such as bar charts or proportional symbol maps.
 
 ```{r}
-normalized_casualties <- combined_data %>%
+#calculating normalized casualties
+normalized_casualties <- combined_summary_sf %>%
   group_by(sect) %>%
-  summarise(
-    total_population = sum(total_population, na.rm = TRUE),
-    total_casualties = sum(P_attack_given_identity * total_population, na.rm = TRUE),  # Actual casualties
-    normalized_casualties = total_casualties / total_population  # Normalize by population
-  )
-
-# View results
+  summarise(total_population = sum(total_population, na.rm = TRUE),
+    total_casualties = sum(p_casualties_given_identity * total_population, na.rm = TRUE),  # Actual casualties
+    normalized_casualties = total_casualties / total_population)  # Normalize by population
 print(normalized_casualties)
 ```
 
@@ -298,22 +330,18 @@ print(normalized_casualties)
 # Bar chart for normalized casualties
 ggplot(normalized_casualties, aes(x = sect, y = normalized_casualties, fill = sect)) +
   geom_bar(stat = "identity") +
-  labs(
-    title = "Normalized Casualties per Identity Group",
+  labs(title = "Normalized Casualties per Identity Group",
     x = "Identity Group",
-    y = "Normalized Casualties (Casualties per Population)"
-  ) +
+    y = "Normalized Casualties (Casualties per Population)") +
   theme_minimal() +
   theme(legend.position = "none")
 
 ```
 
 ```{r}
-library(sf)  # For spatial data handling
-
 # Combine normalized casualties with spatial geometries
-map_data <- combined_data %>%
-  mutate(total_casualties = P_attack_given_identity * total_population)  # Calculate casualties per region
+map_data <- combined_summary_sf %>%
+  mutate(total_casualties = p_casualties_given_identity * total_population)
 
 # Proportional symbol map
 ggplot(data = map_data) +
@@ -321,7 +349,7 @@ ggplot(data = map_data) +
   scale_fill_viridis_c(option = "viridis", name = "Total Casualties") +
   labs(
     title = "Proportional Symbol Map of Total Casualties",
-    caption = "Casualties derived from P_attack_given_identity."
+    caption = "Casualties derived from p_attack_given_identity."
   ) +
   theme_minimal()
 ```
@@ -331,13 +359,14 @@ ggplot(data = map_data) +
 -   Compare the types of attacks (e.g., airstrikes, ground operations) across identity groups. Use tables or clustered bar charts.
 -   Highlight patterns or notable differences.
 
-```{r}
-attack_type_summary <- combined_data %>%
+```{r 3.5_attack_type}
+#summarizing attack types
+
+attack_type_summary <- combined_summary_sf %>%
   group_by(sect, event_type) %>%
   summarise(
     total_attacks = sum(events, na.rm = TRUE),  # Summarize total attacks using `events`
-    .groups = "drop"
-  )
+    .groups = "drop")
 print(attack_type_summary)
 
 ```
