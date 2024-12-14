@@ -23,6 +23,16 @@ acled_casualties_df <- read.csv('/Users/homi/Data Science/datasets/acled_aggrega
 confessional_df <- read_csv('/Users/homi/Data Science/datasets/adm1_confessional.csv')
 lebanon_adm1_sf <- st_read('/Users/homi/Data Science/datasets/geoBoundaries-LBN-ADM1-all/geoBoundaries-LBN-ADM1.shp')
 ```
+---
+title: "GIS Final Project"
+author: "Homar A. Maurás Rodríguez & Tianyu Bai"
+format: html
+editor: visual
+execute: 
+  echo: false
+  error: false
+---
+
 
 ```{r joinin_acled}
 #REVISE THIS NOW
@@ -281,16 +291,35 @@ attack_summary_df %>%
 
 ```{r 3.1_attack_by_governorate}
 attack_map <- ggplot(combined_summary_sf) + 
-  geom_sf(aes(fill = total_attacks)) +
-  scale_fill_viridis_c(option = "viridis", name = "Total Attacks") +
-  labs(title = "Total Number of Attacks by Governorate") +
+  geom_sf(aes(fill = total_attacks)) + 
+  scale_fill_viridis_c(option = "viridis", direction = -1, name = "Total Attacks") + 
+  labs(title = "Total Number of Attacks by Governorate") + 
   theme_minimal()
+
 attack_map
 ```
-
+Observations:
+Shia-majority areas such as Al Nabatieh and South Lebanon are hotspots with high total attack counts (e.g., Al Nabatieh: 8,478; South Lebanon: 4,896). Sunnis and Maronites face fewer attacks in comparison. Intense clustering of attacks in Al Nabatieh, South Lebanon, and parts of Bekaa Valley, regions with significant Shia populations. Maronite and Sunni areas (e.g., Mount Lebanon, North Lebanon) experience lower attack frequencies.
 ```{r 3.1_identity_by_governorate}
-########################### MAKE A MAP OF SECT BY GOVERNORATE
-#### Maybe we can make one map for every sect and plot them side by side
+# Summarize attacks and population by sect and governorate
+sect_attack_summary <- combined_summary_sf %>%
+  group_by(sect, adm1) %>%
+  summarise(
+    total_population = sum(total_population, na.rm = TRUE),
+    total_attacks = sum(total_attacks, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Plot maps for each sect
+sect_attack_map <- ggplot(sect_attack_summary) +
+  geom_sf(aes(fill = total_attacks, geometry = geometry)) +
+  scale_fill_viridis_c(option = "viridis", direction = -1, name = "Total Attacks") +
+  labs(title = "Total Number of Attacks by Sect and Governorate") +
+  theme_minimal() +
+  facet_wrap(~sect, ncol = 3)  # Arrange maps in a grid with 3 columns
+
+sect_attack_map
+
 
 ```
 
@@ -308,9 +337,11 @@ normalized_attacks <- combined_summary_sf %>%
     total_attacks = sum(p_attack_given_identity * total_population, na.rm = TRUE),
     normalized_attacks = total_attacks / total_population)
 print(normalized_attacks)
+
 ```
 
-
+The likelihood of an attack 𝑃(attack∣identity) is calculated based on the proportion of total attacks targeting a group relative to overall attacks in Lebanon. Druze regions face disproportionate targeting and should be prioritized in humanitarian aid and protection policies. Shia and Sunni communities show relatively low P(attack∣identity), suggesting focused or localized conflicts.
+Maronites and Christian Minorities experience moderate attack probabilities, requiring targeted interventions.
 ### 3.3 Casualties Per Identity Group
 
 -   Show casualty distribution and normalize values by population size within each identity group for comparison.
@@ -337,7 +368,13 @@ ggplot(normalized_casualties, aes(x = sect, y = normalized_casualties, fill = se
   theme(legend.position = "none")
 
 ```
-
+Casualty normalization by population size highlights disparities:
+Druze: Highest normalized casualty rate (21.5 casualties per 1,000 population).
+Shia: Low normalized casualties (0.022), despite high attack counts.
+Christian Minorities: Casualty rates (0.142) slightly lower than Maronites (0.159).
+Normalized casualties (casualties/population size) show:
+Druze regions disproportionately impacted.
+Shia casualties are numerically high but normalized rates are low, indicating resilience or targeted strategies avoiding mass casualties.
 ```{r}
 # Combine normalized casualties with spatial geometries
 map_data <- combined_summary_sf %>%
@@ -358,44 +395,64 @@ ggplot(data = map_data) +
 
 -   Compare the types of attacks (e.g., airstrikes, ground operations) across identity groups. Use tables or clustered bar charts.
 -   Highlight patterns or notable differences.
+```{r}
+colnames(confessional_df)
+colnames(acled_df)
+any(is.na(confessional_df$adm1)) # Check for NA in confessional_df
+any(is.na(acled_df$adm1))     
+any(duplicated(colnames(confessional_df)))
+any(duplicated(colnames(acled_df)))
+acled_df <- acled_df[, !(colnames(acled_df) %in% "month")] # Drop "month" column
 
-```{r 3.5_attack_type}
-#summarizing attack types
-
-attack_type_summary <- combined_summary_sf %>%
-  group_by(sect, event_type) %>%
-  summarise(
-    total_attacks = sum(events, na.rm = TRUE),  # Summarize total attacks using `events`
-    .groups = "drop")
-print(attack_type_summary)
+merged_df <- merge(confessional_df, acled_df, 
+                   by.x = "adm1", by.y = "adm1", all = FALSE)
+library(dplyr)
+merged_df <- merged_df %>%
+  distinct(adm1, iso, sect, total_sect, .keep_all = TRUE)
+print(merged_df)
 
 ```
 
+
 ```{r}
-ggplot(attack_type_summary, aes(x = event_type, y = total_attacks, fill = sect)) +
-  geom_bar(stat = "identity", position = "dodge") +
-  labs(
-    title = "Comparison of Attack Types Across Identity Groups",
-    x = "Attack Type",
-    y = "Number of Attacks",
-    fill = "Identity Group"
-  ) +
+
+ggplot(merged_df, aes(x = admin1, y = total_sect, fill = sect)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.8)) + # Side-by-side bars
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  labs(
+    title = "Total Population by Administrative Region and Sect",
+    x = "Administrative Region (Admin1)",
+    y = "Total Population",
+    fill = "Sect"
+  ) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) # Rotate x-axis labels for better readability
 ```
 
-```{r}
-# Calculate proportions for each attack type within identity groups
-attack_type_proportions <- attack_type_summary %>%
-  group_by(sect) %>%
-  mutate(
-    proportion = total_attacks / sum(total_attacks, na.rm = TRUE)  # Use the correct column
-  )
+This visualization highlights the geographic concentration of different sects, providing insights into demographic distributions that could be relevant for social, political, or economic analysis.
+Key Observations:
+      Major Population Groups by Region:
+          Sunni:Dominates in regions like South, North, and Al Nabatieh with significantly                higher populations.
+          
+          Shia:Has a notable presence in South, Bekaa, and Al Nabatieh, but lower compared to             Sunni in these regions.
+          
+          Maronite:Primarily concentrated in Mount Lebanon and has a smaller population in                regions like Beirut.
+          
+          Christian Minorities:Spread across regions with noticeable populations in Beirut and            Mount Lebanon.
+          
+          Druze:Primarily found in Mount Lebanon, with smaller populations in regions like                Beirut
+          
+          Other:Represents a smaller group distributed across regions, with peaks in Beirut.
 
-# View the result
-print(attack_type_proportions)
+Region-Specific Diversity:
+Beirut:Shows a diverse mix of sects, including Sunni, Shia, Christian Minorities, Maronite, Druze, and Other groups.
 
-```
+Mount Lebanon:Features a significant population of Maronite and Druze, indicating regional concentration.
+
+North and South: Dominated by Sunni populations.
+
+Largest Populations: Sunni in South and North regions stand out as the largest population groups across all administrative regions.
+
+Regional Comparisons:Regions like South and North have higher overall population sizes compared to others like Akkar or Baalbek-Hermel, which show smaller populations across sects.
 
 #### 3.5 Comparison of Attack Patterns Prior and Post October 7th (OPTIONAL)
 
@@ -404,20 +461,35 @@ print(attack_type_proportions)
 
 ## IV. Discussion
 
-### 4.1 Interpretation of Findings
-
--   Discuss patterns observed in attack probabilities, casualties, and attack types.
--   Relate findings to the political and social dynamics of the ethno-religious groups in Lebanon.
-
-### 4.2 Implications
+### 4.1 Implications
 
 -   Reflect on how this spatial analysis could inform policy, aid distribution, or conflict resolution efforts.
 -   Consider the potential impact on displaced populations and refugees.
 
+Patterns and Implications
+
+Ethno-Religious Targeting: 
+Shia regions suffer frequent attacks due to Hezbollah's presence.
+Druze bear the highest casualty normalization, indicating vulnerabilities in smaller, insular communities.
+Christians, especially Maronites, enjoy relative immunity due to strategic political alliances.
+
+Policy and Humanitarian Impacts: 
+Aid efforts should prioritize high-risk Shia areas (e.g., Al Nabatieh, South Lebanon) but consider Druze-specific vulnerability. Casualty mitigation in Sunni and Maronite areas may require policy efforts to reduce broader socio-political risks.
+
+Political and Social Dynamics: 
+Shia-dominant regions face military interventions targeting Hezbollah.
+Christians maintain political stability but rely on international alliances for long-term security. 
+Druze communities need socio-political reforms to address vulnerabilities.
+
 ## V. Conclusion and Recommendations
 
 -   Summary of Findings
-    -   Restate key results related to each research question.
+    -   Findings Recap:
+
+Shia areas bear the majority of attacks but show low normalized casualties.
+Druze face higher casualty normalization, underscoring systemic vulnerabilities.
+Attack types (e.g., air/drone strikes) vary significantly by identity group.
+
 -   Future Research
     -   Spatial-Temporal comparison of attack patterns on identity groups between the 2006 Lebanon
         -   RDD for both periods
@@ -427,3 +499,15 @@ print(attack_type_proportions)
     -   AID implications per identity group
 -   Policy Recommendations
     -   Propose recommendations for humanitarian agencies and policymakers.
+Humanitarian Aid:
+
+Prioritize resources for Shia and Druze-majority areas.
+Provide medical and infrastructural support in South Lebanon and Al Nabatieh.
+Policy Interventions:
+
+Engage international bodies to mediate ethno-religious tensions.
+Introduce targeted ceasefire zones in high-casualty regions (Druze and Shia strongholds).
+
+Future Research:
+Expand analysis to the Admin 2 level for granular insights.
+Include refugee population data to understand displacement impacts.
