@@ -18,10 +18,10 @@ library(lubridate) |> suppressPackageStartupMessages()
 ```
 
 ```{r message=FALSE}
-acled_attacks_df <- read_csv('/Users/homi/Data Science/datasets/acled_aggregated_attacks.csv')
-acled_casualties_df <- read.csv('/Users/homi/Data Science/datasets/acled_aggregated_casualties.csv')
-confessional_df <- read_csv('/Users/homi/Data Science/datasets/adm1_confessional.csv')
-lebanon_adm1_sf <- st_read('/Users/homi/Data Science/datasets/geoBoundaries-LBN-ADM1-all/geoBoundaries-LBN-ADM1.shp')
+acled_attacks_df <- read_csv('/Users/homi/Data Science/gis_portfolio/datasets/acled_aggregated_attacks.csv')
+acled_casualties_df <- read.csv('/Users/homi/Data Science/gis_portfolio/datasets/acled_aggregated_casualties.csv')
+confessional_df <- read_csv('/Users/homi/Data Science/gis_portfolio/datasets/adm1_confessional.csv')
+lebanon_adm1_sf <- st_read('/Users/homi/Data Science/gis_portfolio/geoBoundaries-LBN-ADM1-all/geoBoundaries-LBN-ADM1_simplified.shp')
 ```
 
 ```{r joinin_acled}
